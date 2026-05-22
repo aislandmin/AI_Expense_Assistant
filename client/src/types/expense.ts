@@ -56,6 +56,16 @@ export interface ExpenseInsightDailyTrend {
   income: number;
 }
 
+export interface ExpenseInsightSubcategory {
+  subcategory: string;
+  amount: number;
+}
+
+export interface ExpenseInsightSubcategoryGroup {
+  category: string;
+  subcategories: ExpenseInsightSubcategory[];
+}
+
 export interface ExpenseInsights {
   startDate: string;
   endDate: string;
@@ -63,6 +73,7 @@ export interface ExpenseInsights {
   totalIncome: number;
   net: number;
   byCategory: ExpenseInsightCategory[];
+  bySubcategory: ExpenseInsightSubcategoryGroup[];
   dailyTrend: ExpenseInsightDailyTrend[];
   topCategory: ExpenseInsightCategory | null;
   insights: string[];

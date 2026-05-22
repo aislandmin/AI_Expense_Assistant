@@ -36,7 +36,7 @@ const spendingTemplates: SeedEntryTemplate[] = [
   {
     category: "Food & Drink",
     merchant: "Corner Cafe",
-    description: "Coffee and meals out",
+    description: "Coffee, takeout, and meals out",
     minAmount: 8,
     maxAmount: 48,
     dayStart: 1,
@@ -46,7 +46,7 @@ const spendingTemplates: SeedEntryTemplate[] = [
   {
     category: "Transportation",
     subcategory: "Gas",
-    merchant: "Fuel Stop",
+    merchant: "Shell",
     description: "Vehicle fuel",
     minAmount: 38,
     maxAmount: 82,
@@ -64,6 +64,28 @@ const spendingTemplates: SeedEntryTemplate[] = [
     dayStart: 1,
     dayEnd: 28,
     monthlyCount: 2,
+  },
+  {
+    category: "Transportation",
+    subcategory: "Parking",
+    merchant: "Downtown Parking",
+    description: "Parking fee",
+    minAmount: 6,
+    maxAmount: 22,
+    dayStart: 5,
+    dayEnd: 26,
+    monthlyCount: 1,
+  },
+  {
+    category: "Transportation",
+    subcategory: "Rideshare",
+    merchant: "Uber",
+    description: "Rideshare trip",
+    minAmount: 14,
+    maxAmount: 38,
+    dayStart: 6,
+    dayEnd: 28,
+    monthlyCount: 1,
   },
   {
     category: "Bills & Utilities",
@@ -85,6 +107,28 @@ const spendingTemplates: SeedEntryTemplate[] = [
     maxAmount: 95,
     dayStart: 14,
     dayEnd: 16,
+    monthlyCount: 1,
+  },
+  {
+    category: "Bills & Utilities",
+    subcategory: "Electricity",
+    merchant: "Hydro Utility",
+    description: "Electricity bill",
+    minAmount: 70,
+    maxAmount: 135,
+    dayStart: 17,
+    dayEnd: 19,
+    monthlyCount: 1,
+  },
+  {
+    category: "Bills & Utilities",
+    subcategory: "Insurance",
+    merchant: "Home Insurance Co",
+    description: "Insurance payment",
+    minAmount: 42,
+    maxAmount: 88,
+    dayStart: 21,
+    dayEnd: 23,
     monthlyCount: 1,
   },
   {
@@ -121,7 +165,7 @@ const spendingTemplates: SeedEntryTemplate[] = [
   {
     category: "Entertainment",
     merchant: "Cinema Club",
-    description: "Entertainment",
+    description: "Movie night",
     minAmount: 18,
     maxAmount: 85,
     dayStart: 8,
@@ -159,6 +203,17 @@ const occasionalTemplates: SeedEntryTemplate[] = [
     maxAmount: 420,
     dayStart: 12,
     dayEnd: 27,
+    monthlyCount: 1,
+  },
+  {
+    category: "Bills & Utilities",
+    subcategory: "Water",
+    merchant: "City Water",
+    description: "Water bill",
+    minAmount: 28,
+    maxAmount: 62,
+    dayStart: 11,
+    dayEnd: 18,
     monthlyCount: 1,
   },
   {
@@ -212,6 +267,37 @@ function createTimestamp(date: Date, sequence: number) {
   return timestamp;
 }
 
+function addEntry(
+  entries: Array<{
+    amount: number;
+    category: string;
+    subcategory: string | null;
+    merchant: string;
+    description: string;
+    date: Date;
+    userId: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }>,
+  entry: {
+    amount: number;
+    category: string;
+    subcategory?: string | null;
+    merchant: string;
+    description: string;
+    date: Date;
+    userId: string;
+  },
+  sequence: number
+) {
+  entries.push({
+    ...entry,
+    subcategory: entry.subcategory ?? null,
+    createdAt: createTimestamp(entry.date, sequence),
+    updatedAt: createTimestamp(entry.date, sequence),
+  });
+}
+
 async function main() {
   const password = await bcrypt.hash(TEST_USER.password, 10);
   const user = await prisma.user.upsert({
@@ -246,7 +332,7 @@ async function main() {
     entries.push({
       amount: 4300 + Math.round(seededRandom(monthSeed) * 500),
       category: "Income",
-      subcategory: null,
+      subcategory: "Salary",
       merchant: "Employer Payroll",
       description: "Salary",
       date: salaryDate,
@@ -257,18 +343,52 @@ async function main() {
     sequence += 1;
 
     if (monthOffset % 3 === 0) {
-      const bonusDate = createDateForMonth(month, 15);
+      const refundDate = createDateForMonth(month, 15);
 
       entries.push({
-        amount: amountBetween(120, 650, monthSeed + 77),
+        amount: amountBetween(35, 220, monthSeed + 77),
         category: "Income",
-        subcategory: null,
-        merchant: "Refunds and Adjustments",
-        description: "Extra income or refund",
-        date: bonusDate,
+        subcategory: "Refund",
+        merchant: "Store Refund",
+        description: "Refund for returned purchase",
+        date: refundDate,
         userId: user.id,
-        createdAt: createTimestamp(bonusDate, sequence),
-        updatedAt: createTimestamp(bonusDate, sequence),
+        createdAt: createTimestamp(refundDate, sequence),
+        updatedAt: createTimestamp(refundDate, sequence),
+      });
+      sequence += 1;
+    }
+
+    if (monthOffset % 4 === 1) {
+      const reimbursementDate = createDateForMonth(month, 20);
+
+      entries.push({
+        amount: amountBetween(45, 180, monthSeed + 91),
+        category: "Income",
+        subcategory: "Reimbursement",
+        merchant: "Work Reimbursement",
+        description: "Reimbursed work expense",
+        date: reimbursementDate,
+        userId: user.id,
+        createdAt: createTimestamp(reimbursementDate, sequence),
+        updatedAt: createTimestamp(reimbursementDate, sequence),
+      });
+      sequence += 1;
+    }
+
+    if (monthOffset % 6 === 2) {
+      const giftDate = createDateForMonth(month, 24);
+
+      entries.push({
+        amount: amountBetween(25, 150, monthSeed + 113),
+        category: "Income",
+        subcategory: "Gift",
+        merchant: "Family",
+        description: "Gift money",
+        date: giftDate,
+        userId: user.id,
+        createdAt: createTimestamp(giftDate, sequence),
+        updatedAt: createTimestamp(giftDate, sequence),
       });
       sequence += 1;
     }
@@ -316,6 +436,61 @@ async function main() {
       });
       sequence += 1;
     }
+  }
+
+  const currentMonth = monthStart(0);
+  const currentMonthHighlights = [
+    {
+      amount: 96.42,
+      category: "Food & Drink",
+      merchant: "Birthday Bistro",
+      description: "Dinner out with friends",
+      date: createDateForMonth(currentMonth, 6),
+    },
+    {
+      amount: 74.31,
+      category: "Transportation",
+      subcategory: "Gas",
+      merchant: "Shell",
+      description: "Gas refill",
+      date: createDateForMonth(currentMonth, 8),
+    },
+    {
+      amount: 18.5,
+      category: "Transportation",
+      subcategory: "Parking",
+      merchant: "Downtown Parking",
+      description: "Parking for appointment",
+      date: createDateForMonth(currentMonth, 9),
+    },
+    {
+      amount: 129.99,
+      category: "Income",
+      subcategory: "Refund",
+      merchant: "Style Store",
+      description: "Refund for returned jacket",
+      date: createDateForMonth(currentMonth, 12),
+    },
+    {
+      amount: 84.75,
+      category: "Bills & Utilities",
+      subcategory: "Electricity",
+      merchant: "Hydro Utility",
+      description: "Electricity bill adjustment",
+      date: createDateForMonth(currentMonth, 18),
+    },
+  ];
+
+  for (const entry of currentMonthHighlights) {
+    addEntry(
+      entries,
+      {
+        ...entry,
+        userId: user.id,
+      },
+      sequence
+    );
+    sequence += 1;
   }
 
   await prisma.expense.createMany({

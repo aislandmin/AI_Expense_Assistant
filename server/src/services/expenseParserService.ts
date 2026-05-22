@@ -1,3 +1,5 @@
+import { getOpenAiClient } from "../utils/openai";
+
 export interface ParsedExpense {
     amount: number;
     category: string;
@@ -37,6 +39,7 @@ const categoryByKeyword: Record<string, string> = {
     groceries: "Groceries",
     grocery: "Groceries",
     gym: "Health",
+    gift: "Income",
     health: "Health",
     home: "Home & Rent",
     hotel: "Travel",
@@ -51,6 +54,13 @@ const categoryByKeyword: Record<string, string> = {
     norills: "Groceries",
     pants: "Clothing",
     phone: "Bills & Utilities",
+    pay: "Income",
+    paycheck: "Income",
+    refund: "Income",
+    return: "Income",
+    returned: "Income",
+    reimbursed: "Income",
+    reimbursement: "Income",
     rent: "Home & Rent",
     restaurant: "Food & Drink",
     salary: "Income",
@@ -90,6 +100,14 @@ const subcategoryByKeyword: Record<string, string> = {
     internet: "Internet",
     parking: "Parking",
     phone: "Phone",
+    pay: "Salary",
+    paycheck: "Salary",
+    refund: "Refund",
+    return: "Refund",
+    returned: "Refund",
+    reimbursed: "Reimbursement",
+    reimbursement: "Reimbursement",
+    salary: "Salary",
     shell: "Gas",
     subway: "Transit",
     subscription: "Subscription",
@@ -239,14 +257,25 @@ function canonicalizeSubcategory(
             subscription: "Subscription",
             water: "Water",
         },
+        Income: {
+            gift: "Gift",
+            pay: "Salary",
+            paycheck: "Salary",
+            refund: "Refund",
+            return: "Refund",
+            returned: "Refund",
+            reimbursed: "Reimbursement",
+            reimbursement: "Reimbursement",
+            salary: "Salary",
+        },
         Transportation: {
-        fuel: "Gas",
-        gas: "Gas",
-        maintenance: "Maintenance",
-        parking: "Parking",
-        rideshare: "Rideshare",
-        taxi: "Taxi",
-        transit: "Transit",
+            fuel: "Gas",
+            gas: "Gas",
+            maintenance: "Maintenance",
+            parking: "Parking",
+            rideshare: "Rideshare",
+            taxi: "Taxi",
+            transit: "Transit",
         },
     };
 
@@ -379,79 +408,67 @@ export function parseExpenseWithRules(text: string): ParsedExpense | null {
 export async function parseExpenseWithOpenAi(
     text: string
 ): Promise<ParsedExpense | null> {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const openai = getOpenAiClient();
 
-    if (!apiKey) {
+    if (!openai) {
         return null;
     }
 
     const today = toDateString(new Date());
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            model,
-            messages: [
-                {
-                    role: "system",
-                    content:
-                        `You parse one personal expense from casual user text. Return only structured data. Do not invent a merchant: use null unless a business or service name is explicitly present. Normalize merchant names to their common store name when obvious, for example nofrills or Nofrills should be No Frills. Category must be one of: ${allowedCategories.join(", ")}. Use Groceries for grocery stores and grocery items. Use Food & Drink for restaurants, coffee shops, takeout, snacks eaten out, lunch, or dinner. Use Clothing for shoes, clothes, pants, and apparel. Use Home & Rent for rent, housing, furniture, repairs, and home supplies. Use Transportation for gas, transit, rideshare, taxi, parking, or vehicle fuel. For Transportation, set subcategory to Gas, Parking, Transit, Rideshare, Taxi, Maintenance, or Other when obvious. For Bills & Utilities, set subcategory to Phone, Internet, Water, Electricity, Insurance, Subscription, or Other when obvious. Otherwise use null.`,
-                },
-                {
-                    role: "user",
-                    content: `Current date: ${today}\nExpense text: ${text}`,
-                },
-            ],
-            response_format: {
-                type: "json_schema",
-                json_schema: {
-                    name: "parsed_expense",
-                    strict: true,
-                    schema: {
-                        type: "object",
-                        additionalProperties: false,
-                        properties: {
-                            amount: { type: "number" },
-                            category: { type: "string" },
-                            subcategory: {
-                                anyOf: [{ type: "string" }, { type: "null" }],
-                                description:
-                                    "Optional subcategory. For Transportation, use Gas, Parking, Transit, Rideshare, Taxi, Maintenance, or Other when obvious.",
-                            },
-                            description: { type: "string" },
-                            merchant: {
-                                anyOf: [{ type: "string" }, { type: "null" }],
-                            },
-                            date: {
-                                type: "string",
-                                description: "Date in YYYY-MM-DD format.",
-                            },
+    const response = await openai.chat.completions.create({
+        model,
+        messages: [
+            {
+                role: "system",
+                content:
+                    `You parse one personal expense or income entry from casual user text. Return only structured data. Do not invent a merchant: use null unless a business or service name is explicitly present. Normalize merchant names to their common store name when obvious, for example nofrills or Nofrills should be No Frills. Category must be one of: ${allowedCategories.join(", ")}. Use Groceries for grocery stores and grocery items. Use Food & Drink for restaurants, coffee shops, takeout, snacks eaten out, lunch, or dinner. Use Clothing for shoes, clothes, pants, and apparel. Use Home & Rent for rent, housing, furniture, repairs, and home supplies. Use Transportation for gas, transit, rideshare, taxi, parking, or vehicle fuel. Use Income for salary, pay, refunds, reimbursements, gifts, and other money coming in. For Transportation, set subcategory to Gas, Parking, Transit, Rideshare, Taxi, Maintenance, or Other when obvious. For Bills & Utilities, set subcategory to Phone, Internet, Water, Electricity, Insurance, Subscription, or Other when obvious. For Income, set subcategory to Salary, Refund, Reimbursement, Gift, or Other when obvious. Otherwise use null.`,
+            },
+            {
+                role: "user",
+                content: `Current date: ${today}\nExpense text: ${text}`,
+            },
+        ],
+        response_format: {
+            type: "json_schema",
+            json_schema: {
+                name: "parsed_expense",
+                strict: true,
+                schema: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                        amount: { type: "number" },
+                        category: { type: "string" },
+                        subcategory: {
+                            anyOf: [{ type: "string" }, { type: "null" }],
+                            description:
+                                "Optional subcategory. For Transportation, use Gas, Parking, Transit, Rideshare, Taxi, Maintenance, or Other when obvious. For Income, use Salary, Refund, Reimbursement, Gift, or Other when obvious.",
                         },
-                        required: [
-                            "amount",
-                            "category",
-                            "subcategory",
-                            "description",
-                            "merchant",
-                            "date",
-                        ],
+                        description: { type: "string" },
+                        merchant: {
+                            anyOf: [{ type: "string" }, { type: "null" }],
+                        },
+                        date: {
+                            type: "string",
+                            description: "Date in YYYY-MM-DD format.",
+                        },
                     },
+                    required: [
+                        "amount",
+                        "category",
+                        "subcategory",
+                        "description",
+                        "merchant",
+                        "date",
+                    ],
                 },
             },
-        }),
+        },
     });
 
-    if (!response.ok) {
-        throw new Error("OpenAI expense parsing failed");
-    }
-
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
+    const content = response.choices[0]?.message?.content;
 
     if (typeof content !== "string") {
         return null;

@@ -73,6 +73,10 @@ function formatCurrency(value: string | number) {
   }).format(Number(value));
 }
 
+function formatPercentage(value: number) {
+  return `${value.toFixed(1)}%`;
+}
+
 function getDateRangeError(startDate: string, endDate: string) {
   if (!startDate || !endDate) {
     return "Choose both a start date and an end date.";
@@ -95,6 +99,9 @@ function FinancialInsights({ refreshKey }: FinancialInsightsProps) {
   const [insights, setInsights] = useState<ExpenseInsights | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [requestError, setRequestError] = useState("");
+  const [expandedCategories, setExpandedCategories] = useState<
+    Record<string, boolean>
+  >({});
 
   const selectedRange =
     period === "custom"
@@ -180,6 +187,95 @@ function FinancialInsights({ refreshKey }: FinancialInsightsProps) {
     setCustomEndDate(nextEndDate);
   }
 
+  function getSubcategoryDetails(category: string) {
+    return (
+      displayedInsights?.bySubcategory.find(
+        (group) => group.category === category
+      )?.subcategories ?? []
+    );
+  }
+
+  function toggleCategory(category: string) {
+    setExpandedCategories((currentExpandedCategories) => ({
+      ...currentExpandedCategories,
+      [category]: !currentExpandedCategories[category],
+    }));
+  }
+
+  function renderCategoryStatsRow({
+    category,
+    amount,
+    label,
+    percentage,
+    isIncome = false,
+  }: {
+    category: string;
+    amount: number;
+    label: string;
+    percentage?: number;
+    isIncome?: boolean;
+  }) {
+    const subcategories = getSubcategoryDetails(category);
+    const isExpandable = subcategories.length > 0;
+    const isExpanded = Boolean(expandedCategories[category]);
+
+    return (
+      <article
+        className={`category-stats-row${isIncome ? " income-stats-row" : ""}`}
+        key={category}
+      >
+        <div className="category-stats-main">
+          <div className="category-stats-title">
+            {isExpandable ? (
+              <button
+                aria-expanded={isExpanded}
+                className="category-expand-button"
+                onClick={() => toggleCategory(category)}
+                type="button"
+              >
+                <span aria-hidden="true">{isExpanded ? "v" : ">"}</span>
+                <strong>{category}</strong>
+              </button>
+            ) : (
+              <strong>{category}</strong>
+            )}
+            <span>{label}</span>
+          </div>
+          <strong>{formatCurrency(amount)}</strong>
+        </div>
+
+        {percentage !== undefined && (
+          <div
+            className="category-stats-bar"
+            aria-label={`${category} ${formatPercentage(percentage)} of spending`}
+          >
+            <span style={{ width: `${percentage}%` }} />
+          </div>
+        )}
+
+        {isExpandable && isExpanded && (
+          <div className="subcategory-stats-list">
+            {subcategories.map((subcategory) => {
+              const subcategoryPercentage =
+                amount > 0 ? (subcategory.amount / amount) * 100 : 0;
+
+              return (
+                <div
+                  className="subcategory-stats-row"
+                  key={`${category}-${subcategory.subcategory}`}
+                >
+                  <span>{subcategory.subcategory}</span>
+                  <span>{formatPercentage(subcategoryPercentage)}</span>
+                  <strong>{formatCurrency(subcategory.amount)}</strong>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </article>
+    );
+  }
+
   return (
     <section className="insights-section">
       <div className="insights-header">
@@ -230,15 +326,12 @@ function FinancialInsights({ refreshKey }: FinancialInsightsProps) {
 
             <div className="category-stats-list">
               {displayedInsights.totalIncome > 0 && (
-                <article className="category-stats-row income-stats-row">
-                  <div className="category-stats-main">
-                    <div>
-                      <strong>Income</strong>
-                      <span>Tracked separately from spending</span>
-                    </div>
-                    <strong>{formatCurrency(displayedInsights.totalIncome)}</strong>
-                  </div>
-                </article>
+                renderCategoryStatsRow({
+                  category: "Income",
+                  amount: displayedInsights.totalIncome,
+                  label: "Tracked separately from spending",
+                  isIncome: true,
+                })
               )}
 
               {displayedInsights.byCategory.length === 0 ? (
@@ -250,25 +343,12 @@ function FinancialInsights({ refreshKey }: FinancialInsightsProps) {
                       ? (category.amount / displayedInsights.totalSpending) * 100
                       : 0;
 
-                  return (
-                    <article className="category-stats-row" key={category.category}>
-                      <div className="category-stats-main">
-                        <div>
-                          <strong>{category.category}</strong>
-                          <span>{Math.round(percentage)}% of spending</span>
-                        </div>
-                        <strong>{formatCurrency(category.amount)}</strong>
-                      </div>
-                      <div
-                        className="category-stats-bar"
-                        aria-label={`${category.category} ${Math.round(
-                          percentage
-                        )}% of spending`}
-                      >
-                        <span style={{ width: `${percentage}%` }} />
-                      </div>
-                    </article>
-                  );
+                  return renderCategoryStatsRow({
+                    category: category.category,
+                    amount: category.amount,
+                    label: `${formatPercentage(percentage)} of spending`,
+                    percentage,
+                  });
                 })
               )}
             </div>

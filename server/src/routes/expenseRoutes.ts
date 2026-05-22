@@ -88,6 +88,10 @@ function validateExpenseInput(body: {
         return { error: "Amount must be a valid number" };
     }
 
+    if (numericAmount <= 0) {
+        return { error: "Amount must be greater than zero" };
+    }
+
     if (typeof category !== "string" || category.trim() === "") {
         return { error: "Category must be a non-empty string" };
     }
@@ -437,6 +441,39 @@ router.get("/insights", async (req, res) => {
             }))
             .sort((a, b) => b.amount - a.amount);
 
+        const subcategoryTotals = expenses.reduce<
+            Record<string, Record<string, number>>
+        >((acc, expense) => {
+            const category = expense.category;
+            const subcategory = expense.subcategory || "No subcategory";
+
+            if (!acc[category]) {
+                acc[category] = {};
+            }
+
+            acc[category][subcategory] =
+                (acc[category][subcategory] || 0) + Number(expense.amount);
+            return acc;
+        }, {});
+
+        const bySubcategory = Object.entries(subcategoryTotals)
+            .map(([category, subcategories]) => ({
+                category,
+                subcategories: Object.entries(subcategories)
+                    .map(([subcategory, amount]) => ({
+                        subcategory,
+                        amount,
+                    }))
+                    .sort((a, b) => b.amount - a.amount),
+            }))
+            .filter((group) => {
+                const hasSpecificSubcategory = group.subcategories.some(
+                    (subcategory) => subcategory.subcategory !== "No subcategory"
+                );
+
+                return hasSpecificSubcategory && group.subcategories.length > 0;
+            });
+
         const dailyTrendMap: Record<string, { spending: number; income: number }> = {};
         for (
             let date = new Date(parsedStartDate);
@@ -487,6 +524,7 @@ router.get("/insights", async (req, res) => {
             totalIncome,
             net,
             byCategory,
+            bySubcategory,
             dailyTrend,
             topCategory,
             insights,

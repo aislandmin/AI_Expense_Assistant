@@ -1,4 +1,5 @@
 import prisma from "../utils/prisma";
+import { getOpenAiClient } from "../utils/openai";
 
 type AskIntent =
     | "category_total"
@@ -49,6 +50,12 @@ const categoryAliases: Record<string, string> = {
     housing: "Home & Rent",
     income: "Income",
     rent: "Home & Rent",
+    refund: "Income",
+    refunds: "Income",
+    return: "Income",
+    returned: "Income",
+    reimbursed: "Income",
+    reimbursement: "Income",
     shopping: "Other",
     transportation: "Transportation",
     travel: "Travel",
@@ -64,6 +71,15 @@ const subcategoryAliases: Record<string, string> = {
     internet: "Internet",
     parking: "Parking",
     phone: "Phone",
+    pay: "Salary",
+    paycheck: "Salary",
+    refund: "Refund",
+    refunds: "Refund",
+    return: "Refund",
+    returned: "Refund",
+    reimbursed: "Reimbursement",
+    reimbursement: "Reimbursement",
+    salary: "Salary",
     subscription: "Subscription",
     transit: "Transit",
     bus: "Transit",
@@ -72,6 +88,7 @@ const subcategoryAliases: Record<string, string> = {
     taxi: "Taxi",
     maintenance: "Maintenance",
     water: "Water",
+    gift: "Gift",
 };
 
 const allowedCategories = [
@@ -231,6 +248,27 @@ function canonicalizeSubcategory(subcategory: string | null) {
     return matchingAlias?.[1] ?? subcategory;
 }
 
+function getCategoryForSubcategory(subcategory: string) {
+    if (
+        [
+            "Electricity",
+            "Insurance",
+            "Internet",
+            "Phone",
+            "Subscription",
+            "Water",
+        ].includes(subcategory)
+    ) {
+        return "Bills & Utilities";
+    }
+
+    if (["Salary", "Refund", "Reimbursement", "Gift"].includes(subcategory)) {
+        return "Income";
+    }
+
+    return "Transportation";
+}
+
 function parsePeriod(question: string): AskPeriod {
     const normalizedQuestion = normalizeText(question);
 
@@ -258,6 +296,11 @@ function isIncomeQuestion(normalizedQuestion: string) {
     return (
         normalizedQuestion.includes("income") ||
         normalizedQuestion.includes("salary") ||
+        normalizedQuestion.includes("refund") ||
+        normalizedQuestion.includes("return") ||
+        normalizedQuestion.includes("reimbursed") ||
+        normalizedQuestion.includes("reimbursement") ||
+        normalizedQuestion.includes("gift") ||
         normalizedQuestion.includes("earned") ||
         normalizedQuestion.includes("get paid") ||
         normalizedQuestion.includes("got paid") ||
@@ -309,7 +352,7 @@ function parseRuleBasedIntent(question: string): ParsedAskIntent {
         return {
             intent: "income_total",
             category: "Income",
-            subcategory: null,
+            subcategory: parseSubcategory(question),
             period,
             month,
         };
@@ -480,21 +523,15 @@ function applyQuestionOverrides(
         };
     }
 
-    if (subcategory && parsedIntent.intent === "spending_total") {
-        const category = [
-            "Electricity",
-            "Insurance",
-            "Internet",
-            "Phone",
-            "Subscription",
-            "Water",
-        ].includes(subcategory)
-            ? "Bills & Utilities"
-            : "Transportation";
-
+    if (
+        subcategory &&
+        (parsedIntent.intent === "spending_total" ||
+            parsedIntent.intent === "income_total")
+    ) {
+        const category = getCategoryForSubcategory(subcategory);
         return {
             ...parsedIntent,
-            intent: "category_total",
+            intent: category === "Income" ? "income_total" : "category_total",
             category,
             subcategory: canonicalizeSubcategory(subcategory),
         };
@@ -506,109 +543,97 @@ function applyQuestionOverrides(
 async function parseAskIntentWithOpenAi(
     question: string
 ): Promise<ParsedAskIntent | null> {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const openai = getOpenAiClient();
 
-    if (!apiKey) {
+    if (!openai) {
         return null;
     }
 
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            model,
-            messages: [
-                {
-                    role: "system",
-                    content:
-                        `Classify one personal finance question into a structured intent. Do not calculate or invent financial data. Choose category only from: ${allowedCategories.join(", ")}. If the question asks total spending without a category, use spending_total. If the question asks about gas, parking, transit, rideshare, taxi, or maintenance, use category Transportation and set subcategory to the specific transportation type. If the question asks about phone, internet, water, electricity, insurance, or subscription bills, use category Bills & Utilities and set the matching subcategory. If the question asks about eating out, restaurants, coffee, lunch, dinner, or food spending, use Food & Drink. If it asks about income, salary, getting paid, earned money, or money coming in, use income_total. If it asks where money is going or biggest spending, use top_category. If the user says today or yesterday, set period accordingly. If the user names a month like April, set month to that month number. If no supported intent fits, use unsupported.`,
-                },
-                {
-                    role: "user",
-                    content: question,
-                },
-            ],
-            response_format: {
-                type: "json_schema",
-                json_schema: {
-                    name: "financial_question_intent",
-                    strict: true,
-                    schema: {
-                        type: "object",
-                        additionalProperties: false,
-                        properties: {
-                            intent: {
-                                type: "string",
-                                enum: [
-                                    "category_total",
-                                    "spending_total",
-                                    "income_total",
-                                    "compare_months",
-                                    "top_category",
-                                    "monthly_summary",
-                                    "unsupported",
-                                ],
-                            },
-                            category: {
-                                anyOf: [
-                                    {
-                                        type: "string",
-                                        enum: allowedCategories,
-                                    },
-                                    { type: "null" },
-                                ],
-                            },
-                            subcategory: {
-                                anyOf: [{ type: "string" }, { type: "null" }],
-                                description:
-                                    "Optional subcategory such as Gas, Parking, Transit, Rideshare, Taxi, or Maintenance.",
-                            },
-                            period: {
-                                type: "string",
-                                enum: [
-                                    "today",
-                                    "yesterday",
-                                    "this_month",
-                                    "last_month",
-                                ],
-                            },
-                            month: {
-                                anyOf: [
-                                    {
-                                        type: "integer",
-                                        minimum: 1,
-                                        maximum: 12,
-                                    },
-                                    { type: "null" },
-                                ],
-                                description:
-                                    "Numeric month from 1 to 12 when the user names a month like April. Otherwise null.",
-                            },
+    const response = await openai.chat.completions.create({
+        model,
+        messages: [
+            {
+                role: "system",
+                content:
+                        `Classify one personal finance question into a structured intent. Do not calculate or invent financial data. Choose category only from: ${allowedCategories.join(", ")}. If the question asks total spending without a category, use spending_total. If the question asks about gas, parking, transit, rideshare, taxi, or maintenance, use category Transportation and set subcategory to the specific transportation type. If the question asks about phone, internet, water, electricity, insurance, or subscription bills, use category Bills & Utilities and set the matching subcategory. If the question asks about eating out, restaurants, coffee, lunch, dinner, or food spending, use Food & Drink. If it asks about income, salary, getting paid, earned money, refunds, reimbursements, gifts, or money coming in, use income_total and category Income. For Income, set subcategory to Salary, Refund, Reimbursement, Gift, or Other when obvious. If it asks where money is going or biggest spending, use top_category. If the user says today or yesterday, set period accordingly. If the user names a month like April, set month to that month number. If no supported intent fits, use unsupported.`,
+            },
+            {
+                role: "user",
+                content: question,
+            },
+        ],
+        response_format: {
+            type: "json_schema",
+            json_schema: {
+                name: "financial_question_intent",
+                strict: true,
+                schema: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                        intent: {
+                            type: "string",
+                            enum: [
+                                "category_total",
+                                "spending_total",
+                                "income_total",
+                                "compare_months",
+                                "top_category",
+                                "monthly_summary",
+                                "unsupported",
+                            ],
                         },
-                        required: [
-                            "intent",
-                            "category",
-                            "subcategory",
-                            "period",
-                            "month",
-                        ],
+                        category: {
+                            anyOf: [
+                                {
+                                    type: "string",
+                                    enum: allowedCategories,
+                                },
+                                { type: "null" },
+                            ],
+                        },
+                        subcategory: {
+                            anyOf: [{ type: "string" }, { type: "null" }],
+                            description:
+                                "Optional subcategory such as Gas, Parking, Transit, Rideshare, Taxi, Maintenance, Salary, Refund, Reimbursement, or Gift.",
+                        },
+                        period: {
+                            type: "string",
+                            enum: [
+                                "today",
+                                "yesterday",
+                                "this_month",
+                                "last_month",
+                            ],
+                        },
+                        month: {
+                            anyOf: [
+                                {
+                                    type: "integer",
+                                    minimum: 1,
+                                    maximum: 12,
+                                },
+                                { type: "null" },
+                            ],
+                            description:
+                                "Numeric month from 1 to 12 when the user names a month like April. Otherwise null.",
+                        },
                     },
+                    required: [
+                        "intent",
+                        "category",
+                        "subcategory",
+                        "period",
+                        "month",
+                    ],
                 },
             },
-        }),
+        },
     });
 
-    if (!response.ok) {
-        throw new Error("OpenAI intent parsing failed");
-    }
-
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
+    const content = response.choices[0]?.message?.content;
 
     if (typeof content !== "string") {
         return null;
@@ -687,16 +712,31 @@ async function answerIncomeTotal(
 ): Promise<AskResponse> {
     const dateRange = getRequestedRange(parsedIntent);
     const expenses = await findExpensesForRange(dateRange, userId);
-    const incomeEntries = expenses.filter((expense) => expense.category === "Income");
+    const incomeEntries = expenses.filter(
+        (expense) =>
+            expense.category === "Income" &&
+            (!parsedIntent.subcategory ||
+                expense.subcategory === parsedIntent.subcategory)
+    );
     const income = sumExpenses(incomeEntries);
+    const incomeLabels: Record<string, string> = {
+        Gift: "gifts",
+        Refund: "refunds",
+        Reimbursement: "reimbursements",
+        Salary: "salary",
+    };
+    const incomeLabel = parsedIntent.subcategory
+        ? incomeLabels[parsedIntent.subcategory] ?? parsedIntent.subcategory.toLowerCase()
+        : "income";
 
     return {
         intent: "income_total",
-        answer: `You recorded ${formatCurrency(income)} in income for ${dateRange.label}.`,
+        answer: `You recorded ${formatCurrency(income)} in ${incomeLabel} for ${dateRange.label}.`,
         data: {
             year: dateRange.year,
             month: dateRange.month,
             income,
+            subcategory: parsedIntent.subcategory,
             count: incomeEntries.length,
         },
     };

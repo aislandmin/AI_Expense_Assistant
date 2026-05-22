@@ -8,7 +8,7 @@ import authRoutes from "./routes/authRoutes";
 import { requireAuth } from "./middleware/requireAuth";
 import expenseRoutes from "./routes/expenseRoutes";
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const app = express();
 
@@ -31,6 +31,10 @@ app.use("/api/auth", authRoutes);
 app.use("/api/expenses", requireAuth, expenseRoutes);
 app.use("/api/ai", requireAuth, aiRoutes);
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+}
+
+export default app;

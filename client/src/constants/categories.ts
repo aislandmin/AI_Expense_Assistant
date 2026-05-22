@@ -32,6 +32,13 @@ export const SUBCATEGORY_OPTIONS_BY_CATEGORY: Record<string, string[]> = {
     "Subscription",
     "Other",
   ],
+  Income: [
+    "Salary",
+    "Refund",
+    "Reimbursement",
+    "Gift",
+    "Other",
+  ],
 };
 
 export function isKnownCategory(category: string) {

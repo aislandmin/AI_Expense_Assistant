@@ -30,7 +30,7 @@ function AppNavbar() {
 
   return (
     <nav className="navbar" aria-label="App navigation">
-      <NavLink className="navbar-brand" to="/app/insights">
+      <NavLink className="navbar-brand" to="/">
         <img src={logo} alt="AI Expense Assistant Logo" aria-hidden="true" />
         AI Expense Assistant
       </NavLink>

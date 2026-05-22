@@ -13,6 +13,7 @@ The goal is to feel like "ChatGPT for personal spending": users can manually add
 - Protected app workspace with Insights, Ask AI, and Entries pages
 - Period-based financial insights
 - Spending by category chart and daily spending/income trend chart
+- Expandable category statistics with subcategory breakdowns
 - Recent entries and paginated entry history
 - Edit and delete saved records with delete confirmation
 - CSV export for selected periods
@@ -49,10 +50,11 @@ Backend:
 - PostgreSQL
 - bcryptjs
 - JSON Web Tokens
+- OpenAI Node SDK
 
 AI:
 
-- OpenAI API for structured expense parsing and financial answers
+- OpenAI API through the official server-side Node SDK for structured expense parsing and financial answers
 - Deterministic fallback parsing when no OpenAI API key is configured
 
 ## Architecture
@@ -68,7 +70,9 @@ React client
   -> PostgreSQL
 ```
 
-The app keeps user-facing workflows in the client and financial/business rules on the server. The client never calculates authoritative totals for summaries, insights, exports, or AI answers. Those values come from server-side Prisma queries scoped to the authenticated user.
+AI-specific routes call the server-side OpenAI SDK when `OPENAI_API_KEY` is configured, then run safe backend logic against Prisma/PostgreSQL as needed.
+
+The app keeps user-facing workflows in the client and financial/business rules on the server. The client never calls OpenAI directly and never receives `OPENAI_API_KEY`. It also never calculates authoritative totals for summaries, insights, exports, or AI answers. Those values come from server-side Prisma queries scoped to the authenticated user.
 
 ### Authentication Flow
 
@@ -91,7 +95,7 @@ The Ask AI feature uses AI to understand the question, not to calculate money.
 ```text
 User question
   -> POST /api/ai/ask
-  -> OpenAI structured intent parsing, or rule-based fallback
+  -> OpenAI SDK structured intent parsing, or rule-based fallback
   -> safe backend intent execution
   -> Prisma query for the authenticated user's records
   -> deterministic TypeScript calculation
@@ -115,7 +119,7 @@ The backend then queries saved entries for that date range and user, filters by 
 ```text
 Natural-language entry text
   -> POST /api/ai/parse-expense
-  -> OpenAI structured parsing, or deterministic fallback parser
+  -> OpenAI SDK structured parsing, or deterministic fallback parser
   -> parsed amount/category/subcategory/merchant/date
   -> user reviews the populated form
   -> saved through POST /api/expenses
@@ -130,7 +134,7 @@ Selected period
   -> GET /api/expenses/insights?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
   -> Prisma query
   -> split Income from spending
-  -> calculate totalSpending, totalIncome, net, byCategory, dailyTrend
+  -> calculate totalSpending, totalIncome, net, byCategory, bySubcategory, dailyTrend
   -> render insight cards and charts
 ```
 
@@ -214,8 +218,8 @@ The server environment variables are:
 | `JWT_SECRET` | Yes in production | Secret used to sign the auth cookie JWT. Local development has a fallback, but setting this is recommended. |
 | `CLIENT_URL` | No | Frontend origin allowed by CORS. Defaults to `http://localhost:5173`. |
 | `PORT` | No | Express API port. Defaults to `5000`. |
-| `OPENAI_API_KEY` | No | Enables OpenAI-powered parsing and AI answers. If empty, Quick Add falls back to rule-based parsing. |
-| `OPENAI_MODEL` | No | OpenAI model name. Defaults to `gpt-4o-mini`. |
+| `OPENAI_API_KEY` | No | Server-only key used by the OpenAI SDK. Enables OpenAI-powered parsing and AI answers. If empty, AI features fall back to deterministic/rule-based behavior where available. |
+| `OPENAI_MODEL` | No | OpenAI model name used by the server SDK. Defaults to `gpt-4o-mini`. |
 
 Create `client/.env` if your API URL is different from the default:
 
@@ -237,6 +241,8 @@ The seed script creates demo data for:
 Email: test@example.com
 Password: Password123!
 ```
+
+The demo entries span the latest 24 months relative to the day the seed script runs. They include spending, salary income, refunds, reimbursements, gifts, bills, transportation subcategories, and current-month examples for Ask AI and expandable category statistics. Current-month demo entries may include dates later in the current month so full-month charts have useful data.
 
 ### 5. Run the app locally
 
@@ -275,6 +281,7 @@ Server:
 
 ```bash
 npm run dev
+npm test
 npm run db:seed
 ```
 
@@ -284,6 +291,17 @@ Useful Prisma commands:
 npx prisma migrate dev
 npx prisma studio
 ```
+
+## Testing
+
+Run the backend test suite from the server folder:
+
+```bash
+cd server
+npm test
+```
+
+The backend tests use Node's built-in test runner with `supertest`. They cover protected API behavior, Quick Add fallback parsing, Ask AI answers, income-vs-spending summaries, insights, CSV export, and parser rules. The tests mock Prisma and do not require a live PostgreSQL database or real OpenAI API call.
 
 ## Main API Routes
 
@@ -315,6 +333,8 @@ POST /api/ai/parse-expense
 POST /api/ai/ask
 ```
 
+The web client and any future mobile app should use these backend AI endpoints. Do not put `OPENAI_API_KEY` in client `.env` files, browser code, or mobile app bundles.
+
 ## Product Notes
 
 Income is tracked separately from spending. Summary and insight totals treat:
@@ -322,6 +342,7 @@ Income is tracked separately from spending. Summary and insight totals treat:
 - `totalSpending` as spending only
 - `totalIncome` as income only
 - `net` as income minus spending
+- `bySubcategory` as expandable detail under top-level category statistics
 
 Chart data and insight totals are calculated from saved PostgreSQL records through Prisma. AI is used to parse natural-language input and explain grounded results, not to invent financial data.
 
@@ -333,6 +354,8 @@ The MVP centers on two Prisma models:
 - `Expense`: amount, category, optional subcategory, description, merchant, date, and optional user relation
 
 `Expense` is used for both spending and income entries. Income is stored with category `Income`, then separated in summary and insight calculations.
+
+Income entries can use optional subcategories: `Salary`, `Refund`, `Reimbursement`, `Gift`, and `Other`. Refunds for returned purchases should be saved as positive `Income / Refund` entries, not negative expenses.
 
 ## Validation and Error Handling
 
@@ -361,6 +384,7 @@ npm run lint
 npm run build
 
 cd ../server
+npm test
 npx tsc --noEmit
 ```
 
