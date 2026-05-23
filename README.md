@@ -490,14 +490,38 @@ AI Expense Assistant is a deployed full-stack AI finance application built aroun
 
 ## Screenshots
 
+### Home Page
+
+Public landing page introducing AI Expense Assistant and the main product workflow.
+
 ![AI Expense Assistant screenshot 1](./screenshots/screenshot1.png)
+
+### Tutorial Page
+
+Guided overview that explains how to use the app, add records, review trends, and ask AI financial questions.
 
 ![AI Expense Assistant screenshot 2](./screenshots/screenshot2.png)
 
+### Ask Money Page
+
+AI chat workspace for asking questions about saved financial history by typing or using voice input.
+
 ![AI Expense Assistant screenshot 3](./screenshots/screenshot3.png)
+
+### See Trends Page - Bar Chart
+
+Financial insights page showing spending, income, net, category statistics, and spending by category as a bar chart.
 
 ![AI Expense Assistant screenshot 4](./screenshots/screenshot4.png)
 
+### See Trends Page - Pie Chart
+
+Financial insights page with the category breakdown switched to pie chart view.
+
 ![AI Expense Assistant screenshot 5](./screenshots/screenshot5.png)
+
+### Manage Records Page
+
+Record management page for Quick Add by typing or voice input, manual editing, entry history, and CSV export.
 
 ![AI Expense Assistant screenshot 6](./screenshots/screenshot6.png)
