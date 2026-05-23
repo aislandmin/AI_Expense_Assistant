@@ -209,7 +209,7 @@ Chart data is calculated from PostgreSQL records, not from AI responses.
 ### 1. Clone the repository
 
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/aislandmin/AI_Expense_Assistant.git
 cd ai-expense-assistant
 ```
 
