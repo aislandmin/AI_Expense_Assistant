@@ -281,7 +281,10 @@ Server:
 
 ```bash
 npm run dev
+npm run build
+npm start
 npm test
+npm run db:migrate:deploy
 npm run db:seed
 ```
 
@@ -289,8 +292,71 @@ Useful Prisma commands:
 
 ```bash
 npx prisma migrate dev
+npx prisma migrate deploy
 npx prisma studio
 ```
+
+## Deployment
+
+Recommended production setup:
+
+```text
+Frontend: Vercel
+Backend API: Render Web Service
+Database: Render Postgres
+```
+
+### 1. Create Render Postgres
+
+Create a PostgreSQL database on Render first. Use the database's internal connection string as the backend `DATABASE_URL` because the API server will also run on Render.
+
+### 2. Deploy Backend On Render
+
+Create a Render Web Service from the GitHub repo.
+
+```text
+Root Directory: server
+Build Command: npm ci --include=dev && npm run build && npm run db:migrate:deploy
+Start Command: npm start
+```
+
+Set backend environment variables on Render:
+
+```env
+DATABASE_URL="postgresql://..."
+JWT_SECRET="use-a-long-random-production-secret"
+CLIENT_URL="https://your-client.vercel.app"
+OPENAI_API_KEY="your-openai-api-key"
+OPENAI_MODEL="gpt-4o-mini"
+NODE_ENV="production"
+```
+
+Do not put `OPENAI_API_KEY` in the frontend environment.
+
+For a portfolio/demo deployment, seed the Render database after the backend is connected:
+
+```bash
+cd server
+npm run db:seed
+```
+
+### 3. Deploy Frontend On Vercel
+
+Create a Vercel project from the same GitHub repo.
+
+```text
+Root Directory: client
+Build Command: npm run build
+Output Directory: dist
+```
+
+Set the frontend environment variable on Vercel:
+
+```env
+VITE_API_URL="https://your-render-backend.onrender.com"
+```
+
+After Vercel gives you the final frontend URL, set that URL as `CLIENT_URL` on Render and redeploy the backend so CORS and cookies work correctly.
 
 ## Testing
 
