@@ -33,6 +33,8 @@ const categoryColors = [
   "#0f766e",
 ];
 
+const chartInitialDimension = { width: 480, height: 300 };
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -70,7 +72,13 @@ function SpendingCategoryChart({ data }: SpendingCategoryChartProps) {
         <p className="muted">No spending entries in this period.</p>
       ) : chartType === "bar" ? (
         <div className="chart-container">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={0}
+            minHeight={300}
+            initialDimension={chartInitialDimension}
+          >
             <BarChart data={data} margin={{ top: 8, right: 8, bottom: 24, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
@@ -93,7 +101,13 @@ function SpendingCategoryChart({ data }: SpendingCategoryChartProps) {
         </div>
       ) : (
         <div className="chart-container">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={0}
+            minHeight={300}
+            initialDimension={chartInitialDimension}
+          >
             <PieChart>
               <Pie
                 data={data}

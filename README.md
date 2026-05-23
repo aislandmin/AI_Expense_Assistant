@@ -4,6 +4,21 @@ AI Expense Assistant is a full-stack personal finance workspace for tracking spe
 
 The goal is to feel like "ChatGPT for personal spending": users can manually add expenses or income, use Quick Add to describe a transaction in plain English, review charts and summaries, and ask AI questions grounded in saved records.
 
+## Live Demo
+
+App:
+
+```text
+https://ai-expense-assistant-bay.vercel.app
+```
+
+Demo account:
+
+```text
+Email: test@example.com
+Password: Password123!
+```
+
 ## Features
 
 - JWT authentication with an httpOnly cookie
@@ -57,7 +72,7 @@ AI:
 - OpenAI API through the official server-side Node SDK for structured expense parsing and financial answers
 - Deterministic fallback parsing when no OpenAI API key is configured
 
-## Architecture
+## App Flows
 
 ```text
 React client
@@ -146,34 +161,41 @@ Chart data is calculated from PostgreSQL records, not from AI responses.
 
 ```text
 .
-|-- client/
+|-- client/                         # Frontend app (React/Vite)
 |   |-- src/
-|   |   |-- components/
-|   |   |-- context/
-|   |   |-- layouts/
-|   |   |-- pages/
-|   |   |-- services/
-|   |   |-- types/
-|   |   `-- App.tsx
-|   `-- package.json
+|   |   |-- assets/                 # Images and visual assets used by pages
+|   |   |-- components/             # Reusable UI components and app widgets
+|   |   |-- constants/              # Shared client-side category and subcategory options
+|   |   |-- context/                # Auth state provider and hooks
+|   |   |-- layouts/                # Public and protected route shells
+|   |   |-- pages/                  # Route-level page components
+|   |   |-- services/               # Typed API client functions
+|   |   |-- types/                  # Shared TypeScript types for client data
+|   |   |-- App.tsx                 # React Router route definitions
+|   |   `-- main.tsx                # Browser entry point
+|   |-- index.html                  # Vite HTML template
+|   |-- package.json                # Frontend scripts and dependencies
+|   `-- vite.config.ts              # Vite configuration
 |
-|-- server/
+|-- server/                         # Backend API (Node.js/Express)
 |   |-- src/
-|   |   |-- middleware/
-|   |   |-- routes/
-|   |   |-- services/
-|   |   |-- types/
-|   |   |-- utils/
-|   |   `-- index.ts
+|   |   |-- middleware/             # Request middleware such as JWT auth protection
+|   |   |-- routes/                 # REST API route handlers
+|   |   |-- services/               # Business logic, AI parsing, and Ask AI execution
+|   |   |-- types/                  # Server-side TypeScript request/type helpers
+|   |   |-- utils/                  # Shared utilities for Prisma, OpenAI, and auth tokens
+|   |   `-- index.ts                # Express application entry point
 |   |-- prisma/
-|   |   |-- migrations/
-|   |   |-- schema.prisma
-|   |   `-- seed.ts
-|   `-- package.json
+|   |   |-- migrations/             # Prisma migration history
+|   |   |-- schema.prisma           # Database schema for users and entries
+|   |   `-- seed.ts                 # Demo user and sample financial data
+|   |-- .env.example                # Backend environment variable template
+|   |-- package.json                # Backend scripts and dependencies
+|   `-- prisma.config.ts            # Prisma CLI configuration
 |
-|-- AGENTS.md
-|-- README.md
-`-- .gitignore
+|-- DEPLOYMENT.md                   # Render/Vercel deployment guide
+|-- README.md                       # Project overview and setup guide
+`-- .gitignore                      # Files excluded from Git
 ```
 
 ## Getting Started
@@ -216,17 +238,18 @@ The server environment variables are:
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `DATABASE_URL` | Yes | PostgreSQL connection string used by Prisma. |
-| `JWT_SECRET` | Yes in production | Secret used to sign the auth cookie JWT. Local development has a fallback, but setting this is recommended. |
-| `CLIENT_URL` | No | Frontend origin allowed by CORS. Defaults to `http://localhost:5173`. In production, set this to the exact Vercel frontend origin. |
-| `PORT` | No | Express API port. Defaults to `5000`. |
-| `OPENAI_API_KEY` | No | Server-only key used by the OpenAI SDK. Enables OpenAI-powered parsing and AI answers. If empty, AI features fall back to deterministic/rule-based behavior where available. |
-| `OPENAI_MODEL` | No | OpenAI model name used by the server SDK. Defaults to `gpt-4o-mini`. |
+| `DATABASE_URL` | Yes | PostgreSQL connection string used by Prisma. Required for migrations, seeding, and any database-backed API route. |
+| `JWT_SECRET` | Yes in production | Secret used to sign the auth cookie JWT. Local development has a fallback, but setting this locally is still recommended. |
+| `CLIENT_URL` | Yes in production | Frontend origin allowed by CORS. Defaults to `http://localhost:5173` locally. In production, set this to the exact Vercel frontend origin. |
+| `NODE_ENV` | Yes in production | Set to `production` on Render so auth cookies use `SameSite=None; Secure` for Vercel-to-Render requests. |
+| `PORT` | No | Express API port. Defaults to `5000`. Do not set this on Render because Render provides it automatically. |
+| `OPENAI_API_KEY` | Yes for AI features | Server-only key used by the OpenAI SDK. Required for OpenAI-powered Quick Add parsing and AI financial answers. If empty, limited fallback behavior is used where available. |
+| `OPENAI_MODEL` | Yes for AI features | OpenAI model name used by the server SDK. The code defaults to `gpt-4o-mini`, but production deployments should set it explicitly so AI behavior is intentional and easy to change. |
 
 Create `client/.env` if your API URL is different from the default:
 
 ```env
-VITE_API_URL="http://localhost:5000"
+VITE_API_URL=http://localhost:5000
 ```
 
 ### 4. Set up the database
@@ -327,17 +350,19 @@ Start Command: npm start
 Set backend environment variables on Render:
 
 ```env
-DATABASE_URL="postgresql://..."
-JWT_SECRET="use-a-long-random-production-secret"
-CLIENT_URL="https://your-client.vercel.app"
-OPENAI_API_KEY="your-openai-api-key"
-OPENAI_MODEL="gpt-4o-mini"
-NODE_ENV="production"
+DATABASE_URL=postgresql://...
+JWT_SECRET=use-a-long-random-production-secret
+CLIENT_URL=https://your-client.vercel.app
+OPENAI_API_KEY=your-openai-api-key
+OPENAI_MODEL=gpt-4o-mini
+NODE_ENV=production
 ```
+
+In hosted dashboards such as Render and Vercel, enter environment variable values without quotes. Local `.env` files may use quotes when needed, but plain unquoted values are clearer for these values.
 
 Do not put `OPENAI_API_KEY` in the frontend environment.
 
-For a portfolio/demo deployment, seed the Render database after the backend is connected:
+For a deployed demo with representative financial history, seed the Render database after the backend is connected:
 
 ```bash
 cd server
@@ -357,7 +382,7 @@ Output Directory: dist
 Set the frontend environment variable on Vercel:
 
 ```env
-VITE_API_URL="https://your-render-backend.onrender.com"
+VITE_API_URL=https://your-render-backend.onrender.com
 ```
 
 After Vercel gives you the final frontend URL, set that URL as `CLIENT_URL` on Render and redeploy the backend so CORS and cookies work correctly.
@@ -418,7 +443,7 @@ Chart data and insight totals are calculated from saved PostgreSQL records throu
 
 ## Data Model
 
-The MVP centers on two Prisma models:
+The core data model is built around two Prisma models:
 
 - `User`: name, email, hashed password, and related entries
 - `Expense`: amount, category, optional subcategory, description, merchant, date, and optional user relation
@@ -461,4 +486,18 @@ npx tsc --noEmit
 
 ## Status
 
-This is an MVP portfolio project focused on the core AI finance workflow: add entries, inspect financial patterns, and ask questions about saved spending history.
+AI Expense Assistant is a deployed full-stack AI finance application built around a practical workflow: add entries, inspect financial patterns, and ask grounded questions about saved spending history.
+
+## Screenshots
+
+![AI Expense Assistant screenshot 1](./screenshots/screenshot1.png)
+
+![AI Expense Assistant screenshot 2](./screenshots/screenshot2.png)
+
+![AI Expense Assistant screenshot 3](./screenshots/screenshot3.png)
+
+![AI Expense Assistant screenshot 4](./screenshots/screenshot4.png)
+
+![AI Expense Assistant screenshot 5](./screenshots/screenshot5.png)
+
+![AI Expense Assistant screenshot 6](./screenshots/screenshot6.png)

@@ -14,6 +14,8 @@ interface DailyTrendChartProps {
   data: ExpenseInsightDailyTrend[];
 }
 
+const chartInitialDimension = { width: 480, height: 300 };
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -54,7 +56,13 @@ function DailyTrendChart({ data }: DailyTrendChartProps) {
         <p className="muted">No entries in this period.</p>
       ) : (
         <div className="chart-container">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer
+            width="100%"
+            height="100%"
+            minWidth={0}
+            minHeight={300}
+            initialDimension={chartInitialDimension}
+          >
             <LineChart data={data} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} />
               <XAxis
