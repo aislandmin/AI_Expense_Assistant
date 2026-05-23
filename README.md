@@ -24,7 +24,7 @@ The goal is to feel like "ChatGPT for personal spending": users can manually add
 - Full-stack TypeScript implementation with separate React/Vite client and Express API server
 - Protected API routes using JWT verification middleware and user-scoped Prisma queries
 - Secure password storage with `bcryptjs`
-- Cookie-based auth using `httpOnly`, `sameSite: "lax"`, and production-only `secure` cookies
+- Cookie-based auth using an `httpOnly` cookie with local `sameSite: "lax"` and production cross-site `sameSite: "none"; secure`
 - AI workflow designed around structured outputs instead of free-form database access
 - Prisma-backed financial calculations so totals, charts, exports, and AI answers are grounded in saved records
 - Income is modeled as an entry category but excluded from spending totals and category spending charts
@@ -87,6 +87,8 @@ signup/login
 ```
 
 The app does not store tokens in `localStorage`. Each protected expense and AI route uses the authenticated user id so one user's records are not visible to another user.
+
+In production, the frontend and backend run on different domains, so the auth cookie must be sent as `SameSite=None; Secure`. Local development uses `SameSite=Lax`.
 
 ### AI Question Flow
 
@@ -216,7 +218,7 @@ The server environment variables are:
 | --- | --- | --- |
 | `DATABASE_URL` | Yes | PostgreSQL connection string used by Prisma. |
 | `JWT_SECRET` | Yes in production | Secret used to sign the auth cookie JWT. Local development has a fallback, but setting this is recommended. |
-| `CLIENT_URL` | No | Frontend origin allowed by CORS. Defaults to `http://localhost:5173`. |
+| `CLIENT_URL` | No | Frontend origin allowed by CORS. Defaults to `http://localhost:5173`. In production, set this to the exact Vercel frontend origin. |
 | `PORT` | No | Express API port. Defaults to `5000`. |
 | `OPENAI_API_KEY` | No | Server-only key used by the OpenAI SDK. Enables OpenAI-powered parsing and AI answers. If empty, AI features fall back to deterministic/rule-based behavior where available. |
 | `OPENAI_MODEL` | No | OpenAI model name used by the server SDK. Defaults to `gpt-4o-mini`. |
@@ -305,6 +307,8 @@ Frontend: Vercel
 Backend API: Render Web Service
 Database: Render Postgres
 ```
+
+For a step-by-step deployment reference, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ### 1. Create Render Postgres
 
@@ -428,6 +432,7 @@ Income entries can use optional subcategories: `Salary`, `Refund`, `Reimbursemen
 - Auth endpoints validate required fields and email format.
 - Passwords must be at least 8 characters on signup.
 - Protected routes return `401` when the auth cookie is missing or invalid.
+- Production auth cookies require `NODE_ENV=production`, `CLIENT_URL` set to the Vercel frontend URL, and frontend requests using `credentials: "include"`.
 - Date range endpoints validate `YYYY-MM-DD` inputs and reject invalid ranges.
 - Client forms show user-facing validation and request errors.
 - AI parsing falls back to deterministic rules when OpenAI is unavailable.
