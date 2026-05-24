@@ -1,5 +1,3 @@
-import type { IncomingMessage, ServerResponse } from "node:http";
-
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
   "content-encoding",
@@ -13,6 +11,26 @@ const HOP_BY_HOP_HEADERS = new Set([
   "transfer-encoding",
   "upgrade",
 ]);
+
+declare const process: {
+  env: {
+    API_URL?: string;
+    VITE_API_URL?: string;
+  };
+};
+
+type VercelRequest = {
+  method?: string;
+  url?: string;
+  headers: Record<string, string | string[] | undefined>;
+  on: (event: string, callback: (chunk?: Uint8Array) => void) => void;
+};
+
+type VercelResponse = {
+  statusCode: number;
+  setHeader: (key: string, value: string | string[]) => void;
+  end: (body?: Uint8Array | string) => void;
+};
 
 function getBackendUrl() {
   const url = process.env.API_URL ?? process.env.VITE_API_URL;
@@ -31,7 +49,7 @@ function getProxiedPath(requestUrl: string | undefined) {
   return `${path}${url.search}`;
 }
 
-function getForwardedHeaders(req: IncomingMessage) {
+function getForwardedHeaders(req: VercelRequest) {
   const headers = new Headers();
 
   for (const [key, value] of Object.entries(req.headers)) {
@@ -53,21 +71,38 @@ function getForwardedHeaders(req: IncomingMessage) {
   return headers;
 }
 
-function readBody(req: IncomingMessage) {
+function readBody(req: VercelRequest) {
   if (req.method === "GET" || req.method === "HEAD") {
     return Promise.resolve(undefined);
   }
 
-  return new Promise<Buffer>((resolve, reject) => {
-    const chunks: Buffer[] = [];
+  return new Promise<Uint8Array>((resolve, reject) => {
+    const chunks: Uint8Array[] = [];
 
-    req.on("data", (chunk: Buffer) => chunks.push(chunk));
-    req.on("end", () => resolve(Buffer.concat(chunks)));
-    req.on("error", reject);
+    req.on("data", (chunk) => {
+      if (chunk) {
+        chunks.push(chunk);
+      }
+    });
+    req.on("end", () => resolve(concatChunks(chunks)));
+    req.on("error", () => reject(new Error("Unable to read request body")));
   });
 }
 
-function setResponseHeaders(source: Response, res: ServerResponse) {
+function concatChunks(chunks: Uint8Array[]) {
+  const totalLength = chunks.reduce((total, chunk) => total + chunk.length, 0);
+  const body = new Uint8Array(totalLength);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return body;
+}
+
+function setResponseHeaders(source: Response, res: VercelResponse) {
   source.headers.forEach((value, key) => {
     if (!HOP_BY_HOP_HEADERS.has(key.toLowerCase()) && key !== "set-cookie") {
       res.setHeader(key, value);
@@ -90,10 +125,7 @@ function setResponseHeaders(source: Response, res: ServerResponse) {
   }
 }
 
-export default async function handler(
-  req: IncomingMessage,
-  res: ServerResponse
-) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const targetUrl = `${getBackendUrl()}/api${getProxiedPath(req.url)}`;
     const response = await fetch(targetUrl, {
@@ -104,7 +136,7 @@ export default async function handler(
 
     res.statusCode = response.status;
     setResponseHeaders(response, res);
-    res.end(Buffer.from(await response.arrayBuffer()));
+    res.end(new Uint8Array(await response.arrayBuffer()));
   } catch (error) {
     console.error(error);
     res.statusCode = 502;

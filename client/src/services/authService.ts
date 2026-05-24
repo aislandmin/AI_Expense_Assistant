@@ -12,8 +12,14 @@ async function authRequest<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    const data = await response.json().catch(() => null);
-    const message = data?.error ?? "Authentication request failed";
+    const contentType = response.headers.get("content-type") ?? "";
+    const data = contentType.includes("application/json")
+      ? await response.json().catch(() => null)
+      : null;
+    const fallbackMessage =
+      response.statusText || `Request failed with status ${response.status}`;
+    const message =
+      data?.error ?? `Authentication request failed: ${fallbackMessage}`;
     throw new Error(message);
   }
 
