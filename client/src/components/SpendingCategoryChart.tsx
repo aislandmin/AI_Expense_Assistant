@@ -93,7 +93,9 @@ function SpendingCategoryChart({ data }: SpendingCategoryChartProps) {
               <Bar
                 dataKey="amount"
                 fill="#2563eb"
-                isAnimationActive={false}
+                isAnimationActive
+                animationDuration={450}
+                animationEasing="ease-out"
                 radius={[6, 6, 0, 0]}
               />
             </BarChart>
@@ -119,7 +121,9 @@ function SpendingCategoryChart({ data }: SpendingCategoryChartProps) {
                 label={({ name, percent }) =>
                   `${String(name ?? "")} ${((percent ?? 0) * 100).toFixed(0)}%`
                 }
-                isAnimationActive={false}
+                isAnimationActive
+                animationDuration={450}
+                animationEasing="ease-out"
               >
                 {data.map((entry, index) => (
                   <Cell
