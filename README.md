@@ -34,6 +34,17 @@ Password: Password123!
 - CSV export for selected periods
 - PostgreSQL data model managed with Prisma
 
+## AI Features
+
+AI is used as the natural-language layer on top of structured financial data.
+
+- **Quick Add parsing:** Users can type an expense or income entry in plain English, and the backend uses the OpenAI Node SDK to extract amount, category, subcategory, merchant, date, and description.
+- **Ask AI financial questions:** Users can ask questions such as "How much did I spend on gas this month?", "Compare this month vs last month", or "What was my top category?" The AI converts the question into a structured intent, then the backend answers it with user-scoped Prisma queries.
+- **Grounded answers:** AI does not invent financial records, calculate chart totals, or generate SQL. Spending, income, net totals, category breakdowns, exports, and insight charts are calculated from saved PostgreSQL records.
+- **Safe backend architecture:** The React client calls `/api/ai/parse-expense` and `/api/ai/ask`; OpenAI API keys stay server-side only.
+- **Fallback behavior:** When `OPENAI_API_KEY` is not configured or AI parsing fails, deterministic rule-based parsing and intent handling keep the core demo usable.
+- **Voice-supported Ask flow:** The Ask page can use the browser Web Speech API for voice input, then submits the transcribed question through the same backend Ask AI workflow.
+
 ## Technical Highlights
 
 - Full-stack TypeScript implementation with separate React/Vite client and Express API server
