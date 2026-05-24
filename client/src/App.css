@@ -143,7 +143,7 @@
 .public-hero {
   position: relative;
   overflow: hidden;
-  min-height: 420px;
+  min-height: 360px;
   display: grid;
   align-items: center;
   background: #eff6ff;
@@ -1663,7 +1663,7 @@
   }
 
   .public-hero {
-    min-height: 520px;
+    min-height: 380px;
     padding: 24px;
   }
 
