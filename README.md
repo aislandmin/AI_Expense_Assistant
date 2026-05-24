@@ -38,7 +38,7 @@ Password: Password123!
 
 AI is used as the natural-language layer on top of structured financial data.
 
-- **Quick Add parsing:** Users can type an expense or income entry in plain English, and the backend uses the OpenAI Node SDK to extract amount, category, subcategory, merchant, date, and description.
+- **Quick Add parsing:** Users can type an expense or income entry in plain English, and the backend uses the OpenAI SDK to extract amount, category, subcategory, merchant, date, and description.
 - **Ask AI financial questions:** Users can ask questions such as "How much did I spend on gas this month?", "Compare this month vs last month", or "What was my top category?" The AI converts the question into a structured intent, then the backend answers it with user-scoped Prisma queries.
 - **Grounded answers:** AI does not invent financial records, calculate chart totals, or generate SQL. Spending, income, net totals, category breakdowns, exports, and insight charts are calculated from saved PostgreSQL records.
 - **Safe backend architecture:** The React client calls `/api/ai/parse-expense` and `/api/ai/ask`; OpenAI API keys stay server-side only.
@@ -76,11 +76,11 @@ Backend:
 - PostgreSQL
 - bcryptjs
 - JSON Web Tokens
-- OpenAI Node SDK
+- OpenAI SDK
 
 AI:
 
-- OpenAI API through the official server-side Node SDK for structured expense parsing and financial answers
+- OpenAI API through the official server-side OpenAI SDK for structured expense parsing and financial question intent parsing
 - Deterministic fallback parsing when no OpenAI API key is configured
 
 ## App Flows
@@ -254,7 +254,7 @@ The server environment variables are:
 | `CLIENT_URL` | Yes in production | Frontend origin allowed by CORS. Defaults to `http://localhost:5173` locally. In production, set this to the exact Vercel frontend origin. |
 | `NODE_ENV` | Yes in production | Set to `production` on Render so auth cookies use `SameSite=None; Secure` for Vercel-to-Render requests. |
 | `PORT` | No | Express API port. Defaults to `5000`. Do not set this on Render because Render provides it automatically. |
-| `OPENAI_API_KEY` | Yes for AI features | Server-only key used by the OpenAI SDK. Required for OpenAI-powered Quick Add parsing and AI financial answers. If empty, limited fallback behavior is used where available. |
+| `OPENAI_API_KEY` | Yes for AI features | Server-only key used by the OpenAI SDK. Required for OpenAI-powered Quick Add parsing and AI question understanding. If empty, limited fallback behavior is used where available. |
 | `OPENAI_MODEL` | Yes for AI features | OpenAI model name used by the server SDK. The code defaults to `gpt-4o-mini`, but production deployments should set it explicitly so AI behavior is intentional and easy to change. |
 
 Create `client/.env` for local development if your API URL is different from the default:
