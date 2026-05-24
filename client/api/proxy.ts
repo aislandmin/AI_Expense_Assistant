@@ -43,10 +43,11 @@ function getBackendUrl() {
 }
 
 function getProxiedPath(requestUrl: string | undefined) {
-  const url = new URL(requestUrl ?? "/api", "https://local.proxy");
-  const path = url.pathname.replace(/^\/api/, "") || "/";
+  const url = new URL(requestUrl ?? "/api/proxy", "https://local.proxy");
+  const path = url.searchParams.get("path") ?? "";
+  url.searchParams.delete("path");
 
-  return `${path}${url.search}`;
+  return `/${path}${url.search}`;
 }
 
 function getForwardedHeaders(req: VercelRequest) {

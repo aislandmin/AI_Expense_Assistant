@@ -99,6 +99,8 @@ API_URL=https://your-render-backend.onrender.com
 
 `API_URL` is used by the Vercel `/api/*` proxy function. In production, the browser calls the Vercel app's own `/api/*` routes, and Vercel forwards those requests to Render. This keeps the auth cookie first-party for the Vercel site, which is more reliable on iPhone and in-app browsers.
 
+The proxy is configured by `client/vercel.json`, which rewrites `/api/:path*` to the Vercel function at `client/api/proxy.ts`.
+
 Do not set `VITE_API_URL` on Vercel for production unless you intentionally want the browser to call Render directly. Local development may still use `VITE_API_URL=http://localhost:5000`.
 
 After Vercel deploys, copy the final Vercel URL and set it as `CLIENT_URL` on the Render backend:

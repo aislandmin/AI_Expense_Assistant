@@ -389,6 +389,8 @@ API_URL=https://your-render-backend.onrender.com
 
 `API_URL` is read by the Vercel `/api/*` proxy function. The production browser app calls same-origin `/api/*` routes, and Vercel forwards them to Render. Do not set `VITE_API_URL` on Vercel unless you intentionally want the browser to call Render directly.
 
+The proxy uses `client/vercel.json` to rewrite `/api/:path*` to `client/api/proxy.ts`.
+
 After Vercel gives you the final frontend URL, set that URL as `CLIENT_URL` on Render and redeploy the backend so CORS and cookies work correctly.
 
 ## Testing
