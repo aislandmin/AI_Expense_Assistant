@@ -32,7 +32,7 @@ function AppNavbar() {
     <nav className="navbar" aria-label="App navigation">
       <NavLink className="navbar-brand" to="/">
         <img src={logo} alt="AI Expense Assistant Logo" aria-hidden="true" />
-        AI Expense Assistant
+        <span>AI Expense Assistant</span>
       </NavLink>
 
       <div className="navbar-links">

@@ -1,6 +1,5 @@
 import type { AskResponse, ParsedExpense } from "../types/expense";
-
-const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
+import { API_BASE_URL } from "./apiBase";
 
 export async function parseExpenseText(text: string): Promise<ParsedExpense> {
   const response = await fetch(`${API_BASE_URL}/api/ai/parse-expense`, {

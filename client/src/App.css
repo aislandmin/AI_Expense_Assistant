@@ -27,7 +27,14 @@
   white-space: nowrap;
 }
 
+.navbar-brand span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .navbar-brand img {
+  flex: 0 0 auto;
   width: 38px;
   height: 38px;
   border-radius: 8px;
@@ -1545,6 +1552,7 @@
 
   .navbar-actions {
     justify-content: end;
+    flex-wrap: nowrap;
     min-width: 0;
   }
 
@@ -1632,6 +1640,7 @@
 
   .navbar-brand {
     font-size: 15px;
+    overflow: hidden;
   }
 
   .navbar-brand img {
@@ -1653,6 +1662,15 @@
     left: 12px;
     right: 12px;
     min-width: 0;
+  }
+
+  .navbar-actions {
+    gap: 8px;
+  }
+
+  .navbar .secondary-button,
+  .navbar .primary-link-button {
+    padding-inline: 14px;
   }
 
   .workspace-page-header {
@@ -1684,11 +1702,29 @@
   }
 
   .natural-form {
-    grid-template-columns: 1fr;
+    grid-template-columns: 56px minmax(0, 1fr);
   }
 
   .ask-form {
-    grid-template-columns: 1fr;
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .natural-form .quick-add-input-wrap,
+  .ask-form .quick-add-input-wrap {
+    grid-column: 1 / -1;
+  }
+
+  .natural-form .voice-button,
+  .natural-form button[type="submit"],
+  .ask-form .voice-button,
+  .ask-form button[type="submit"] {
+    min-height: 56px;
+  }
+
+  .natural-form .voice-button,
+  .ask-form .voice-button {
+    width: 56px;
+    min-width: 56px;
   }
 
   .export-form-grid,

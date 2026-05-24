@@ -39,7 +39,7 @@ Password: Password123!
 - Full-stack TypeScript implementation with separate React/Vite client and Express API server
 - Protected API routes using JWT verification middleware and user-scoped Prisma queries
 - Secure password storage with `bcryptjs`
-- Cookie-based auth using an `httpOnly` cookie with local `sameSite: "lax"` and production cross-site `sameSite: "none"; secure`
+- Cookie-based auth using an `httpOnly` cookie, with Vercel production requests proxied through same-origin `/api/*` routes for more reliable mobile browser behavior
 - AI workflow designed around structured outputs instead of free-form database access
 - Prisma-backed financial calculations so totals, charts, exports, and AI answers are grounded in saved records
 - Income is modeled as an entry category but excluded from spending totals and category spending charts
@@ -103,7 +103,7 @@ signup/login
 
 The app does not store tokens in `localStorage`. Each protected expense and AI route uses the authenticated user id so one user's records are not visible to another user.
 
-In production, the frontend and backend run on different domains, so the auth cookie must be sent as `SameSite=None; Secure`. Local development uses `SameSite=Lax`.
+In local development, the browser calls the API directly and cookies use `SameSite=Lax`. In production, the browser calls same-origin Vercel `/api/*` routes, and Vercel proxies those requests to the Render backend so the auth cookie remains first-party to the deployed app.
 
 ### AI Question Flow
 
@@ -246,11 +246,13 @@ The server environment variables are:
 | `OPENAI_API_KEY` | Yes for AI features | Server-only key used by the OpenAI SDK. Required for OpenAI-powered Quick Add parsing and AI financial answers. If empty, limited fallback behavior is used where available. |
 | `OPENAI_MODEL` | Yes for AI features | OpenAI model name used by the server SDK. The code defaults to `gpt-4o-mini`, but production deployments should set it explicitly so AI behavior is intentional and easy to change. |
 
-Create `client/.env` if your API URL is different from the default:
+Create `client/.env` for local development if your API URL is different from the default:
 
 ```env
 VITE_API_URL=http://localhost:5000
 ```
+
+For production on Vercel, use `API_URL` instead. See the deployment section below.
 
 ### 4. Set up the database
 
@@ -382,8 +384,10 @@ Output Directory: dist
 Set the frontend environment variable on Vercel:
 
 ```env
-VITE_API_URL=https://your-render-backend.onrender.com
+API_URL=https://your-render-backend.onrender.com
 ```
+
+`API_URL` is read by the Vercel `/api/*` proxy function. The production browser app calls same-origin `/api/*` routes, and Vercel forwards them to Render. Do not set `VITE_API_URL` on Vercel unless you intentionally want the browser to call Render directly.
 
 After Vercel gives you the final frontend URL, set that URL as `CLIENT_URL` on Render and redeploy the backend so CORS and cookies work correctly.
 
@@ -457,7 +461,7 @@ Income entries can use optional subcategories: `Salary`, `Refund`, `Reimbursemen
 - Auth endpoints validate required fields and email format.
 - Passwords must be at least 8 characters on signup.
 - Protected routes return `401` when the auth cookie is missing or invalid.
-- Production auth cookies require `NODE_ENV=production`, `CLIENT_URL` set to the Vercel frontend URL, and frontend requests using `credentials: "include"`.
+- Production auth requires `NODE_ENV=production`, `CLIENT_URL` set to the Vercel frontend URL, Vercel `API_URL` set to the Render backend URL, and frontend requests using `credentials: "include"`.
 - Date range endpoints validate `YYYY-MM-DD` inputs and reject invalid ranges.
 - Client forms show user-facing validation and request errors.
 - AI parsing falls back to deterministic rules when OpenAI is unavailable.

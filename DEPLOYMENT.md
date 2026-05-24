@@ -94,10 +94,12 @@ Output Directory: dist
 Frontend environment variable on Vercel:
 
 ```env
-VITE_API_URL=https://your-render-backend.onrender.com
+API_URL=https://your-render-backend.onrender.com
 ```
 
-`VITE_API_URL` is used by the client service files to call the backend API.
+`API_URL` is used by the Vercel `/api/*` proxy function. In production, the browser calls the Vercel app's own `/api/*` routes, and Vercel forwards those requests to Render. This keeps the auth cookie first-party for the Vercel site, which is more reliable on iPhone and in-app browsers.
+
+Do not set `VITE_API_URL` on Vercel for production unless you intentionally want the browser to call Render directly. Local development may still use `VITE_API_URL=http://localhost:5000`.
 
 After Vercel deploys, copy the final Vercel URL and set it as `CLIENT_URL` on the Render backend:
 
@@ -153,9 +155,12 @@ If login works locally but fails in production, or if the UI shows `Authenticati
 ```env
 CLIENT_URL=https://your-vercel-app.vercel.app
 NODE_ENV=production
+API_URL=https://your-render-backend.onrender.com
 ```
 
-`CLIENT_URL` must exactly match the deployed frontend origin. `NODE_ENV=production` is required so the backend sends the auth cookie as `SameSite=None; Secure`, which is necessary when Vercel and Render are on different domains.
+`CLIENT_URL` must exactly match the deployed frontend origin. `NODE_ENV=production` is required so the backend sends a secure production cookie.
+
+The production frontend should call same-origin `/api/*` routes through the Vercel proxy. This avoids relying on third-party cookies between `vercel.app` and `onrender.com`, which can fail in iPhone in-app browsers.
 
 The frontend must also call the backend with:
 
