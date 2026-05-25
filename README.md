@@ -6,11 +6,7 @@ The goal is to feel like "ChatGPT for personal spending": users can manually add
 
 ## Live Demo
 
-App:
-
-```text
-https://ai-expense-assistant-bay.vercel.app
-```
+App: [https://ai-expense-assistant-bay.vercel.app](https://ai-expense-assistant-bay.vercel.app)
 
 Demo account:
 
